@@ -1,0 +1,71 @@
+version: "3.3"
+
+services:
+  nginx:
+    image: nginx:1.21.1
+    container_name: products_nginx
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+    ports:
+      -  80:80
+    depends_on:
+      - server
+    networks:
+      - default
+    restart: on-failure
+
+
+  db:
+    build:
+      context: images/
+      dockerfile: db.dockerfile
+    container_name: products_db
+    volumes:
+      - server-db-data:/var/lib/postgresql/data/pgdata
+    env_file:
+      - .env
+    networks:
+      - default
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_DB=$DB_NAME
+      - POSTGRES_USER=$DB_USER
+      - POSTGRES_PASSWORD=$DB_PASSWORD
+
+
+  server:
+    build:
+      context:  .
+      dockerfile: images/server.dockerfile
+    container_name: products_backend
+    volumes:
+       - ./backend/:/backend/
+       - server-db-data:/var/lib/postgresql/data/pgdata
+    command: ./scripts/start-reload.sh
+    env_file:
+      - .env
+    depends_on:
+      - db
+    networks:
+      - default
+
+
+  adminer:
+    image: adminer:latest
+    container_name: products_adminer
+    env_file:
+      - .env
+    networks:
+      - default
+    depends_on:
+      - db
+    ports:
+      - 8080:8080
+
+
+
+volumes:
+  server-db-data:
+
+networks:
+  default:
